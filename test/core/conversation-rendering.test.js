@@ -21,8 +21,8 @@ test("renders_selected_conversation_text_with_fewer_tokens", () => {
     ORDER BY p.time_created
   `
   const messages = readFixture(sql)
-  const markdown = runDbSuccessfully(sql, { args: ["--format", "markdown"] })
-  const rawJson = runDbSuccessfully(sql, { args: ["--format", "json"] })
+  const markdown = runDbSuccessfully(sql, { args: ["--format", "markdown", "--max-chars", "20000"] })
+  const rawJson = runDbSuccessfully(sql, { args: ["--format", "json", "--max-chars", "20000"] })
   const expected = messages
     .map(({ role, text }) => `## ${role === "user" ? "User" : "Assistant"}\n\n${text}`)
     .join("\n\n")

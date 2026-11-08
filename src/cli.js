@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-import { serializeResult } from "./serialize.js"
+import { DEFAULT_MAX_CHARS, MAX_CHARS, serializeResult } from "./serialize.js"
 
 const { version } = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -32,10 +32,11 @@ async function main(args) {
     return
   }
 
-  const sql = parsed.query ?? readQueryFromStdin()
+  const sql = parsed.schema
+    ? "SELECT name, sql FROM sqlite_schema WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    : parsed.query ?? readQueryFromStdin()
   const { executeReadQuery } = await loadQueryRunner()
-  const result = executeReadQuery(parsed.database, sql)
-  const output = serializeResult(result, parsed)
+  const output = executeReadQuery(parsed.database, sql, (result) => serializeResult(result, parsed))
   process.stdout.write(`${output}\n`)
 }
 
@@ -56,8 +57,9 @@ function parseDbArguments(args) {
   const options = {
     database: resolveDatabasePath(),
     format: "compact",
-    maxChars: undefined,
+    maxChars: DEFAULT_MAX_CHARS,
     path: false,
+    schema: false,
     query: undefined,
   }
 
@@ -65,6 +67,10 @@ function parseDbArguments(args) {
     const argument = args[index]
     if (argument === "path" && options.query === undefined) {
       options.path = true
+      continue
+    }
+    if (argument === "schema" && options.query === undefined) {
+      options.schema = true
       continue
     }
     if (argument === "--database") {
@@ -80,8 +86,8 @@ function parseDbArguments(args) {
     }
     if (argument === "--max-chars") {
       options.maxChars = Number(requiredValue(args, ++index, argument))
-      if (!Number.isInteger(options.maxChars) || options.maxChars < 100) {
-        throw new Error("--max-chars must be an integer of at least 100")
+      if (!Number.isInteger(options.maxChars) || options.maxChars < 300 || options.maxChars > MAX_CHARS) {
+        throw new Error(`--max-chars must be an integer between 300 and ${MAX_CHARS}`)
       }
       continue
     }
@@ -116,11 +122,16 @@ function helpText() {
 Usage:
   opencode-context db <query> [--format compact|json|markdown] [--max-chars N]
   opencode-context db path
+  opencode-context db schema [--database PATH]
+
+Retrieval: inspect schema, select IDs and substr(text, ...) excerpts, then
+query a small chronological window around a chosen match. Use ORDER BY and
+LIMIT/OFFSET for stable paging. See skills/context-retrieval/SKILL.md.
 
 Options:
   --database PATH   Query a specific SQLite database
   --format FORMAT   Output format (default: compact)
-  --max-chars N     Bound the complete compact response
+  --max-chars N     Bound every output format (default: ${DEFAULT_MAX_CHARS}, maximum: ${MAX_CHARS})
   --help, -h        Show help
   --version, -v     Show version
 `

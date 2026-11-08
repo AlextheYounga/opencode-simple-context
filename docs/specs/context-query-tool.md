@@ -94,6 +94,15 @@ The response budget applies to the complete result rather than independently to
 each row. Omitted rows and clipped values are explicitly reported, and the
 result retains enough information for a narrower follow-up query.
 
+Every format defaults to 12,000 characters including the CLI newline; callers
+may choose 300–100,000 characters. Retrieval consumes rows incrementally and
+stops when the response fills. Omitted-row counts are explicitly lower bounds
+when the unread remainder has not been counted. Zero-based clipped-cell
+coordinates identify values that need a narrower follow-up query. This bounds
+retained result rows, not SQLite's internal query execution or individual value
+allocations. The CLI's `db schema` helper and bundled context-retrieval skill
+guide schema discovery and progressive queries without prescribing search SQL.
+
 Examples:
 
 - Many individually small matches cannot multiply into an unbounded response.

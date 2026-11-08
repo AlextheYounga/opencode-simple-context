@@ -1,4 +1,5 @@
 import { constants, DatabaseSync } from "node:sqlite"
+import { serializeResult } from "./serialize.js"
 
 const allowedActions = new Set([
   constants.SQLITE_FUNCTION,
@@ -14,7 +15,7 @@ const restrictedTables = new Set([
   "permission",
 ])
 
-export function executeReadQuery(databasePath, sql) {
+export function executeReadQuery(databasePath, sql, consume) {
   if (typeof sql !== "string" || sql.trim() === "") {
     throw new Error("SQL query must not be empty")
   }
@@ -36,8 +37,9 @@ export function executeReadQuery(databasePath, sql) {
     const statement = database.prepare(sql)
     const columns = statement.columns().map(({ name }) => name)
     statement.setReturnArrays(true)
-    const rows = statement.all()
-    return { columns, rows }
+    const rows = statement.iterate()
+    if (consume) return consume({ columns, rows })
+    return JSON.parse(serializeResult({ columns, rows }))
   } finally {
     database.close()
   }
