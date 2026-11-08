@@ -33,7 +33,10 @@ async function main(args) {
   }
 
   const sql = parsed.schema
-    ? "SELECT name, sql FROM sqlite_schema WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ? `SELECT s.name || '(' || group_concat(p.name || ' ' || p.type, ', ') || ')' AS text
+       FROM sqlite_schema s JOIN pragma_table_info(s.name) p
+       WHERE s.type IN ('table', 'view') AND s.name NOT LIKE 'sqlite_%'
+       GROUP BY s.name ORDER BY s.name`
     : parsed.query ?? readQueryFromStdin()
   const { executeReadQuery } = await loadQueryRunner()
   const output = executeReadQuery(parsed.database, sql, (result) => serializeResult(result, parsed))
@@ -56,7 +59,7 @@ async function loadQueryRunner() {
 function parseDbArguments(args) {
   const options = {
     database: resolveDatabasePath(),
-    format: "compact",
+    format: "auto",
     maxChars: DEFAULT_MAX_CHARS,
     path: false,
     schema: false,
@@ -65,6 +68,10 @@ function parseDbArguments(args) {
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index]
+    if (argument === "--raw") {
+      options.format = "json"
+      continue
+    }
     if (argument === "path" && options.query === undefined) {
       options.path = true
       continue
@@ -79,8 +86,8 @@ function parseDbArguments(args) {
     }
     if (argument === "--format") {
       options.format = requiredValue(args, ++index, argument)
-      if (!new Set(["compact", "json", "markdown"]).has(options.format)) {
-        throw new Error("--format must be compact, json, or markdown")
+      if (!new Set(["auto", "compact", "json", "markdown"]).has(options.format)) {
+        throw new Error("--format must be auto, compact, json, or markdown")
       }
       continue
     }
@@ -120,17 +127,18 @@ function helpText() {
   return `opencode-context
 
 Usage:
-  opencode-context db <query> [--format compact|json|markdown] [--max-chars N]
+  opencode-context db <query> [--format auto|compact|json|markdown] [--max-chars N]
   opencode-context db path
   opencode-context db schema [--database PATH]
 
 Retrieval: inspect schema, select IDs and substr(text, ...) excerpts, then
 query a small chronological window around a chosen match. Use ORDER BY and
-LIMIT/OFFSET for stable paging. See skills/context-retrieval/SKILL.md.
+LIMIT/OFFSET for stable paging. See skills/opencode-context/SKILL.md.
 
 Options:
   --database PATH   Query a specific SQLite database
-  --format FORMAT   Output format (default: compact)
+  --raw             Return selected rows as JSON without semantic rendering
+  --format FORMAT   Default: auto (conversation text as Markdown; other rows compact)
   --max-chars N     Bound every output format (default: ${DEFAULT_MAX_CHARS}, maximum: ${MAX_CHARS})
   --help, -h        Show help
   --version, -v     Show version

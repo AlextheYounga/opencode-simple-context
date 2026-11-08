@@ -1,6 +1,6 @@
 ---
-name: context-retrieval
-description: Investigate OpenCode history with small, iterative read-only SQL queries through opencode-context.
+name: opencode-context
+description: Query prior OpenCode sessions for relevant context with small, iterative read-only SQL queries through opencode-context. Use for previous sessions, earlier conversations, past decisions, cross-session context, session history, or the OpenCode database.
 ---
 
 # Retrieve only the context you need
@@ -9,13 +9,16 @@ Use `opencode-context db '<SQL>'`. When working from this checkout, use
 `node src/cli.js db '<SQL>'`. Set `--database PATH` or `OPENCODE_DB_PATH` to
 select a fixture or non-default database. Never mutate the source.
 
+Use `opencode session list --format json` first when titles and recent sessions
+can answer the question more cheaply than database search.
+
 ## Discover, search, expand
 
 1. Run `opencode-context db schema`. Schema is version-dependent; do not assume
    that legacy and V2 tables contain the same sessions.
 2. Inspect a chosen table's definition with
    `SELECT sql FROM sqlite_schema WHERE name = 'session_message'`.
-   PRAGMA statements and table-valued PRAGMA helpers are restricted.
+    Read-only `table_info` inspection is also supported; other pragmas remain restricted.
 3. Start with session IDs, titles, counts, and short matching excerpts. Do not
    retrieve entire sessions just to find a relevant passage.
 4. Use returned IDs and terms to refine the next query. Expand only promising
@@ -50,9 +53,14 @@ literals escape a quote by doubling it; never interpolate unescaped search text.
 
 ## Output and continuation
 
-- Default compact JSON emits `columns` once and `rows` as arrays.
+- Default output renders a string `text` column as Markdown, with speaker headings
+  for recognized `role` values and any additional columns retained as source metadata.
+  Project JSON-backed text with `json_extract(data, '$.text') AS text` rather
+  than selecting raw `data` blobs. Arbitrary other shapes use compact tables.
+- Use `--raw` for selected row objects as JSON, or `--format compact` for
+  `columns` plus array-based `rows`. Raw does not bypass output budgets.
 - `--format markdown` requires exactly `role, text` columns and renders speaker
-  headings. `--format json` returns row objects; truncated JSON uses an envelope.
+  headings. `--format json` is equivalent to `--raw`; truncated JSON uses an envelope.
 - All formats default to 12,000 characters including the output newline.
   `--max-chars N` accepts 300–100,000. Prefer narrowing SQL to increasing it.
 - `truncated.rowsOmitted` is a lower bound when `rowsOmittedIsLowerBound` is

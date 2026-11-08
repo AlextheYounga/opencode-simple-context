@@ -38,7 +38,7 @@ export function runDbSuccessfully(sql, options = {}) {
 }
 
 export function runDbJson(sql, options = {}) {
-  const output = runDbSuccessfully(sql, options)
+  const output = runDbSuccessfully(sql, { ...options, args: ["--format", "compact", ...(options.args ?? [])] })
 
   try {
     return JSON.parse(output)

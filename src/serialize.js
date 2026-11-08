@@ -4,9 +4,9 @@ export const DEFAULT_MAX_CHARS = 12000
 export const MAX_CHARS = 100000
 
 export function serializeResult({ columns, rows }, options = {}) {
-  const format = options.format ?? "compact"
+  const format = options.format ?? "auto"
   const budget = (options.maxChars ?? DEFAULT_MAX_CHARS) - 1 // CLI newline
-  if (!["compact", "json", "markdown"].includes(format)) {
+  if (!["auto", "compact", "json", "markdown"].includes(format)) {
     throw new Error(`Unsupported output format: ${format}`)
   }
   if (format === "markdown" && (columns.length !== 2 || columns[0] !== "role" || columns[1] !== "text")) {
@@ -63,6 +63,25 @@ function metadata(more, count, clippedCells) {
 }
 
 function render(columns, rows, format, truncated) {
+  if (format === "auto") {
+    const textIndex = columns.indexOf("text")
+    const roleIndex = columns.indexOf("role")
+    const recognizable = columns.filter((name) => name === "text").length === 1
+      && new Set(columns).size === columns.length
+      && rows.every((row) => typeof row[textIndex] === "string"
+        && (roleIndex === -1 || ["user", "assistant"].includes(row[roleIndex])))
+    if (recognizable) {
+      const text = rows.map((row) => {
+        const body = roleIndex === -1 ? row[textIndex]
+          : renderTranscript([{ role: row[roleIndex], text: row[textIndex] }])
+        const details = columns.flatMap((name, index) =>
+          index === textIndex || index === roleIndex ? []
+            : [`${name}: ${JSON.stringify(row[index], jsonReplacer)}`])
+        return details.length ? `${details.join("\n")}\n\n${body}` : body
+      }).join("\n\n---\n\n")
+      return truncated ? `${text}\n\n[truncated ${JSON.stringify(truncated)}]` : text
+    }
+  }
   if (format === "markdown") {
     const text = renderTranscript(rows.map(([role, text]) => ({ role, text })))
     return truncated ? `${text}\n\n[truncated ${JSON.stringify(truncated)}]` : text

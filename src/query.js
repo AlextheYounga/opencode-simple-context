@@ -27,6 +27,7 @@ export function executeReadQuery(databasePath, sql, consume) {
   database.enableDefensive(true)
   database.enableLoadExtension(false)
   database.setAuthorizer((action, table) => {
+    if (action === constants.SQLITE_PRAGMA && table === "table_info") return constants.SQLITE_OK
     if (action === constants.SQLITE_READ && restrictedTables.has(table)) {
       return constants.SQLITE_DENY
     }
@@ -39,7 +40,7 @@ export function executeReadQuery(databasePath, sql, consume) {
     statement.setReturnArrays(true)
     const rows = statement.iterate()
     if (consume) return consume({ columns, rows })
-    return JSON.parse(serializeResult({ columns, rows }))
+    return JSON.parse(serializeResult({ columns, rows }, { format: "compact" }))
   } finally {
     database.close()
   }

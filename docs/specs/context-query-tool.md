@@ -22,7 +22,7 @@ databases, or connection-persistent state.
 emits column names once, preserves SQLite value types, and preserves requested
 row and column order.
 
-**Conversation rendering:** An explicitly requested representation of selected
+**Conversation rendering:** The default representation of recognizable selected
 conversation rows that retains speaker boundaries and message text while
 omitting fields not selected for that view.
 
@@ -39,9 +39,12 @@ The public boundary covered by this specification is the `opencode-context db` c
 It includes schema inspection, arbitrary read-only SQL, compact tabular output,
 explicit conversation rendering, response-wide limits, and follow-up queries.
 
-The default output for arbitrary SQL is a compact table. Conversation rendering
-is opt-in and is applied only when the query result satisfies its documented
-input contract. The command may use schema guidance supplied by a skill or CLI
+The default output renders a unique string `text` column as Markdown, recognizing
+optional user/assistant `role` values and retaining extra columns as metadata.
+Other query shapes use compact tables. `--raw` explicitly returns JSON row
+objects; `--format compact` forces compact tables. `db schema` emits table names
+and column names/types rather than raw DDL; query `sqlite_schema.sql` for full
+constraints and indexes. The command may use schema guidance supplied by a skill or CLI
 help, but it does not prescribe an agent's search sequence.
 
 The verification fixture contains only selected local conversation records.
@@ -79,7 +82,7 @@ Examples:
 ### Returns faithful token-efficient output
 
 Compact tables preserve selected values, SQLite types, aliases, and ordering.
-Explicit conversation rendering preserves message text and speaker boundaries
+Automatic conversation rendering preserves message text and speaker boundaries
 while omitting unrequested raw-record metadata, and uses fewer tokens than the
 equivalent raw JSON database response under the test suite's pinned tokenizer.
 
@@ -100,7 +103,7 @@ stops when the response fills. Omitted-row counts are explicitly lower bounds
 when the unread remainder has not been counted. Zero-based clipped-cell
 coordinates identify values that need a narrower follow-up query. This bounds
 retained result rows, not SQLite's internal query execution or individual value
-allocations. The CLI's `db schema` helper and bundled context-retrieval skill
+allocations. The CLI's `db schema` helper and bundled `opencode-context` skill
 guide schema discovery and progressive queries without prescribing search SQL.
 
 Examples:
@@ -139,8 +142,8 @@ Rejects: A canned search interface, a serializer that loses types or aliases, or
 ### Renders selected conversation text with fewer tokens
 
 Rule: #returns-faithful-token-efficient-output
-Requirement: Explicit conversation rendering removes raw-record overhead without rewriting selected conversation content.
-Experiment: Select fixture messages containing multiline prose, quotes, and code, then request conversation rendering. Compare the rendered speakers and text with the source values, assert that unrequested metadata is absent, and compare its pinned-tokenizer count with the equivalent raw JSON database response.
+Requirement: Default conversation rendering removes raw-record overhead without rewriting selected conversation content.
+Experiment: Select fixture messages containing multiline prose, quotes, and code using the default output. Compare the rendered speakers and text with the source values, assert that unrequested metadata is absent, and compare its pinned-tokenizer count with the equivalent --raw JSON database response.
 Expected: Speaker boundaries and source text are exact, unrequested identifiers, accounting, reasoning, and tool payloads are absent, and the rendered response uses fewer tokens than raw JSON.
 Rejects: A renamed JSON dump, prose that rewrites source text, missing message content, or formatting whose token count is not lower than the raw baseline.
 

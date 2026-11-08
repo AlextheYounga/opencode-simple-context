@@ -18,7 +18,7 @@ test("limits_oversized_results_and_reports_how_to_continue", () => {
     ORDER BY id
   `
   const output = runDbSuccessfully(source, {
-    args: ["--max-chars", String(maxChars)],
+    args: ["--format", "compact", "--max-chars", String(maxChars)],
   })
   const result = JSON.parse(output)
 
