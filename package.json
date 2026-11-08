@@ -4,9 +4,15 @@
   "description": "",
   "license": "ISC",
   "author": "",
-  "type": "commonjs",
-  "main": "index.js",
+  "type": "module",
+  "main": "src/query.js",
+  "bin": {
+    "opencode-context": "src/cli.js"
+  },
   "scripts": {
-    "test": "bun test"
+    "test": "node --test test/*.test.js test/core/*.test.js"
+  },
+  "devDependencies": {
+    "gpt-tokenizer": "4.1.0"
   }
 }
