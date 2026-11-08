@@ -1,5 +1,7 @@
-import { describe, expect, test } from "bun:test"
-import { renderTranscript } from "./render-transcript.mjs"
+import assert from "node:assert/strict"
+import { describe, test } from "node:test"
+
+import { renderTranscript } from "../src/transcript.js"
 
 describe("renderTranscript", () => {
   test("renders message content and strips unselected metadata", () => {
@@ -8,16 +10,18 @@ describe("renderTranscript", () => {
       { id: "msg_2", role: "assistant", text: "First line\nSecond line" },
     ])
 
-    expect(result).toBe(
+    assert.equal(
+      result,
       "## User\n\nQuestion\n\n## Assistant\n\nFirst line\nSecond line",
     )
-    expect(result).not.toContain("msg_1")
-    expect(result).not.toContain("tokens")
+    assert.doesNotMatch(result, /msg_1/)
+    assert.doesNotMatch(result, /tokens/)
   })
 
   test("rejects rows without a supported role and text", () => {
-    expect(() => renderTranscript([{ role: "tool", text: "Result" }])).toThrow(
-      "Invalid message row at index 0",
+    assert.throws(
+      () => renderTranscript([{ role: "tool", text: "Result" }]),
+      { message: "Invalid message row at index 0" },
     )
   })
 })
