@@ -30,11 +30,11 @@ Provide an agent-facing SQL query tool that:
 ## Confirmed Environment
 
 - Project directory: `/home/alex/Work/js/opencode-simple-context`
-- OpenCode version inspected: `1.18.32`
+- OpenCode versions inspected: `1.18.32` for the original database command and `2.0.32` for the current installation
 - Plugin SDK available locally: `@opencode-ai/plugin` version `1.4.3`
-- Runtime/package ecosystem: JavaScript/TypeScript with Bun-compatible OpenCode plugins
-- Current project state: only a minimal `package.json`; no plugin implementation or test framework exists yet
-- Supported database interface: `opencode db "<query>" --format json`
+- Runtime/package ecosystem: Node.js for the CLI; the future plugin adapter must remain compatible with OpenCode's host runtime
+- Current project state: an initial `opencode-context db` CLI and executable core tests exist; the OpenCode plugin boundary is not implemented yet
+- OpenCode V2 no longer exposes the previously used `opencode db` command, so this project owns equivalent read-only query behavior
 - Stable session discovery interface: `opencode session list --format json`
 
 OpenCode plugins export a `Plugin` function and may register named tools. A tool is defined with `tool({ description, args, execute })`, receives Zod-compatible arguments, and returns a string to the model.
@@ -141,7 +141,7 @@ Final field names and serialization format should be chosen using measured token
 Use the OpenCode plugin tool API as the agent boundary. Keep responsibilities separate:
 
 - The tool validates agent input and reports bounded results.
-- A query runner invokes the supported OpenCode database interface without shell interpolation.
+- A query runner opens the resolved OpenCode SQLite database read-only and executes SQL without shell interpolation.
 - A policy layer enforces read-only SQL and table restrictions.
 - A serializer converts returned rows into compact, deterministic output.
 - OpenCode-specific projections convert known session data into lean objects where doing so materially reduces tokens.
@@ -151,7 +151,7 @@ The generic SQL capability and OpenCode-specific transformations should share th
 ## Decisions Still To Settle
 
 - Whether the first release exposes one generic SQL tool, purpose-built context tools, or both.
-- Whether execution should spawn `opencode db` for every query or use a read-only SQLite connection after resolving the supported database path.
+- How the future OpenCode plugin should share the CLI query runner and serializers.
 - The exact SQL parser or validation strategy needed to enforce read-only behavior reliably.
 - The default and maximum row/output limits.
 - The compact wire format and whether short field names save enough tokens to justify reduced readability.
@@ -168,7 +168,7 @@ The implementation will be considered successful when tests and manual checks de
 - truncation is visible to the calling agent;
 - JSON-backed OpenCode text can be projected without returning full raw records;
 - both known conversation storage models are handled or produce a clear unsupported-schema result;
-- measured tool output is materially smaller than raw `opencode db --format json` for representative session queries;
+- measured rendered output is materially smaller than the CLI's raw JSON format for representative session queries;
 - plugin loading and tool execution work in a real OpenCode session.
 
 ## Sources Used For This Context
